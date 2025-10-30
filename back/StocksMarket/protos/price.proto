@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package price;
+
+// Price Service - Market Quotes Manager
+service PriceService {
+  // Get current price for a stock
+  rpc GetPrice(PriceRequest) returns (PriceResponse);
+  
+  // Get prices for multiple stocks
+  rpc GetPrices(PricesRequest) returns (PricesResponse);
+  
+  // Update price after trade
+  rpc UpdatePrice(UpdatePriceRequest) returns (UpdatePriceResponse);
+  
+  // Stream real-time price updates
+  rpc StreamPrices(StreamPricesRequest) returns (stream PriceUpdate);
+  
+  // Get historical prices
+  rpc GetPriceHistory(PriceHistoryRequest) returns (PriceHistoryResponse);
+  
+  // Initialize stock with starting price
+  rpc InitializeStock(InitializeStockRequest) returns (InitializeStockResponse);
+}
+
+message PriceRequest {
+  string stock_symbol = 1;
+}
+
+message PriceResponse {
+  string stock_symbol = 1;
+  double current_price = 2;
+  double open_price = 3;
+  double high_price = 4;
+  double low_price = 5;
+  double change_percent = 6;
+  int64 last_updated = 7;
+}
+
+message PricesRequest {
+  repeated string stock_symbols = 1;
+}
+
+message PricesResponse {
+  repeated PriceResponse prices = 1;
+}
+
+message UpdatePriceRequest {
+  string stock_symbol = 1;
+  double trade_price = 2;
+  int32 trade_volume = 3;
+  bool is_buy = 4;
+}
+
+message UpdatePriceResponse {
+  bool success = 1;
+  double new_price = 2;
+  double price_change = 3;
+}
+
+message StreamPricesRequest {
+  repeated string stock_symbols = 1;  // Empty for all stocks
+}
+
+message PriceUpdate {
+  string stock_symbol = 1;
+  double price = 2;
+  double change_percent = 3;
+  int64 timestamp = 4;
+  string trigger = 5;  // What caused the update (TRADE, MARKET_OPEN, etc)
+}
+
+message PriceHistoryRequest {
+  string stock_symbol = 1;
+  int64 start_time = 2;
+  int64 end_time = 3;
+  int32 limit = 4;
+}
+
+message PricePoint {
+  double price = 1;
+  int64 timestamp = 2;
+  int32 volume = 3;
+}
+
+message PriceHistoryResponse {
+  string stock_symbol = 1;
+  repeated PricePoint history = 2;
+}
+
+message InitializeStockRequest {
+  string stock_symbol = 1;
+  double initial_price = 2;
+  string company_name = 3;
+}
+
+message InitializeStockResponse {
+  bool success = 1;
+  string message = 2;
+}
+

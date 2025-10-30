@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  market-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: market-service
+    environment:
+      - MARKET_SERVICE_PORT=50051
+      - PRICE_SERVICE_HOST=price-service
+      - INVESTOR_SERVICE_HOST=investor-service
+      - ANALYTICS_SERVICE_HOST=analytics-service
+      - DATABASE_PATH=/app/data/stockmarket.db
+    ports:
+      - "50051:50051"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: node market-service/server.js
+    depends_on:
+      - price-service
+      - investor-service
+      - analytics-service
+    restart: unless-stopped
+    networks:
+      - stockmarket-network
+
+  price-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: price-service
+    environment:
+      - PRICE_SERVICE_PORT=50052
+      - DATABASE_PATH=/app/data/stockmarket.db
+    ports:
+      - "50052:50052"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: node price-service/server.js
+    restart: unless-stopped
+    networks:
+      - stockmarket-network
+
+  investor-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: investor-service
+    environment:
+      - INVESTOR_SERVICE_PORT=50053
+      - PRICE_SERVICE_HOST=price-service
+      - DATABASE_PATH=/app/data/stockmarket.db
+    ports:
+      - "50053:50053"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: node investor-service/server.js
+    depends_on:
+      - price-service
+    restart: unless-stopped
+    networks:
+      - stockmarket-network
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: analytics-service
+    environment:
+      - ANALYTICS_SERVICE_PORT=50054
+      - DATABASE_PATH=/app/data/stockmarket.db
+    ports:
+      - "50054:50054"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: node analytics-service/server.js
+    restart: unless-stopped
+    networks:
+      - stockmarket-network
+
+  webhook-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: webhook-service
+    environment:
+      - WEBHOOK_SERVICE_PORT=8080
+      - DATABASE_PATH=/app/data/stockmarket.db
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    command: node webhook-service/server.js
+    restart: unless-stopped
+    networks:
+      - stockmarket-network
+
+networks:
+  stockmarket-network:
+    driver: bridge
+
+volumes:
+  data:
+  logs:
+

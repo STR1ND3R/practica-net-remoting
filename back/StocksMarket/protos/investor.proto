@@ -1,0 +1,132 @@
+syntax = "proto3";
+
+package investor;
+
+// Investor Service - Account and Portfolio Management
+service InvestorService {
+  // Register a new investor
+  rpc RegisterInvestor(RegisterRequest) returns (RegisterResponse);
+  
+  // Get investor details
+  rpc GetInvestor(GetInvestorRequest) returns (GetInvestorResponse);
+  
+  // Update investor balance
+  rpc UpdateBalance(UpdateBalanceRequest) returns (UpdateBalanceResponse);
+  
+  // Get investor portfolio
+  rpc GetPortfolio(GetPortfolioRequest) returns (GetPortfolioResponse);
+  
+  // Update portfolio after trade
+  rpc UpdatePortfolio(UpdatePortfolioRequest) returns (UpdatePortfolioResponse);
+  
+  // Get transaction history
+  rpc GetTransactionHistory(TransactionHistoryRequest) returns (TransactionHistoryResponse);
+  
+  // Validate if investor can place order
+  rpc ValidateOrder(ValidateOrderRequest) returns (ValidateOrderResponse);
+}
+
+message RegisterRequest {
+  string name = 1;
+  string email = 2;
+  double initial_balance = 3;
+}
+
+message RegisterResponse {
+  string investor_id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message GetInvestorRequest {
+  string investor_id = 1;
+}
+
+message GetInvestorResponse {
+  string investor_id = 1;
+  string name = 2;
+  string email = 3;
+  double balance = 4;
+  int64 created_at = 5;
+}
+
+message UpdateBalanceRequest {
+  string investor_id = 1;
+  double amount = 2;  // Positive for deposit, negative for withdrawal
+  string reason = 3;
+}
+
+message UpdateBalanceResponse {
+  bool success = 1;
+  double new_balance = 2;
+  string message = 3;
+}
+
+message GetPortfolioRequest {
+  string investor_id = 1;
+}
+
+message PortfolioItem {
+  string stock_symbol = 1;
+  int32 quantity = 2;
+  double average_price = 3;
+  double current_value = 4;
+  double profit_loss = 5;
+}
+
+message GetPortfolioResponse {
+  string investor_id = 1;
+  repeated PortfolioItem holdings = 2;
+  double total_value = 3;
+  double total_profit_loss = 4;
+}
+
+message UpdatePortfolioRequest {
+  string investor_id = 1;
+  string stock_symbol = 2;
+  int32 quantity_change = 3;  // Positive for buy, negative for sell
+  double price = 4;
+  string transaction_id = 5;
+}
+
+message UpdatePortfolioResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message TransactionHistoryRequest {
+  string investor_id = 1;
+  int32 limit = 2;
+  int64 start_time = 3;
+  int64 end_time = 4;
+}
+
+message Transaction {
+  string transaction_id = 1;
+  string stock_symbol = 2;
+  string type = 3;  // BUY or SELL
+  int32 quantity = 4;
+  double price = 5;
+  double total_amount = 6;
+  int64 timestamp = 7;
+}
+
+message TransactionHistoryResponse {
+  repeated Transaction transactions = 1;
+}
+
+message ValidateOrderRequest {
+  string investor_id = 1;
+  string stock_symbol = 2;
+  string order_type = 3;  // BUY or SELL
+  int32 quantity = 4;
+  double price = 5;
+}
+
+message ValidateOrderResponse {
+  bool valid = 1;
+  string message = 2;
+  double required_balance = 3;
+  int32 available_shares = 4;
+}
+

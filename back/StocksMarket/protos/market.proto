@@ -1,0 +1,130 @@
+syntax = "proto3";
+
+package market;
+
+// Market Service - Trading Engine
+service MarketService {
+  // Place a buy or sell order
+  rpc PlaceOrder(OrderRequest) returns (OrderResponse);
+  
+  // Cancel an existing order
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+  
+  // Get order status
+  rpc GetOrderStatus(OrderStatusRequest) returns (OrderStatusResponse);
+  
+  // Stream real-time order executions
+  rpc StreamMarketEvents(StreamRequest) returns (stream MarketEvent);
+  
+  // Get market state
+  rpc GetMarketState(MarketStateRequest) returns (MarketStateResponse);
+  
+  // Set market state (admin only)
+  rpc SetMarketState(SetMarketStateRequest) returns (SetMarketStateResponse);
+  
+  // Get order book for a stock
+  rpc GetOrderBook(OrderBookRequest) returns (OrderBookResponse);
+}
+
+enum OrderType {
+  BUY = 0;
+  SELL = 1;
+}
+
+enum OrderStatus {
+  PENDING = 0;
+  PARTIALLY_FILLED = 1;
+  FILLED = 2;
+  CANCELED = 3;
+  REJECTED = 4;
+}
+
+enum MarketState {
+  OPEN = 0;
+  CLOSED = 1;
+  PAUSED = 2;
+}
+
+message OrderRequest {
+  string investor_id = 1;
+  string stock_symbol = 2;
+  OrderType order_type = 3;
+  int32 quantity = 4;
+  double price = 5;  // Limit price (0 for market order)
+}
+
+message OrderResponse {
+  string order_id = 1;
+  bool success = 2;
+  string message = 3;
+  OrderStatus status = 4;
+}
+
+message CancelOrderRequest {
+  string order_id = 1;
+  string investor_id = 2;
+}
+
+message CancelOrderResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message OrderStatusRequest {
+  string order_id = 1;
+}
+
+message OrderStatusResponse {
+  string order_id = 1;
+  OrderStatus status = 2;
+  int32 filled_quantity = 3;
+  int32 remaining_quantity = 4;
+  double average_price = 5;
+}
+
+message StreamRequest {
+  repeated string stock_symbols = 1;  // Empty for all stocks
+}
+
+message MarketEvent {
+  string event_type = 1;  // ORDER_PLACED, ORDER_EXECUTED, ORDER_CANCELED
+  string order_id = 2;
+  string stock_symbol = 3;
+  OrderType order_type = 4;
+  int32 quantity = 5;
+  double price = 6;
+  string investor_id = 7;
+  int64 timestamp = 8;
+}
+
+message MarketStateRequest {}
+
+message MarketStateResponse {
+  MarketState state = 1;
+}
+
+message SetMarketStateRequest {
+  MarketState state = 1;
+}
+
+message SetMarketStateResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message OrderBookRequest {
+  string stock_symbol = 1;
+}
+
+message OrderBookEntry {
+  double price = 1;
+  int32 quantity = 2;
+  int32 order_count = 3;
+}
+
+message OrderBookResponse {
+  string stock_symbol = 1;
+  repeated OrderBookEntry bids = 2;
+  repeated OrderBookEntry asks = 3;
+}
+

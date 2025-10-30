@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package analytics;
+
+// Analytics Service - Market Insights and Predictions
+service AnalyticsService {
+  // Get top traded stocks
+  rpc GetTopTradedStocks(TopTradedRequest) returns (TopTradedResponse);
+  
+  // Get most volatile stocks
+  rpc GetMostVolatileStocks(VolatileStocksRequest) returns (VolatileStocksResponse);
+  
+  // Get market statistics
+  rpc GetMarketStats(MarketStatsRequest) returns (MarketStatsResponse);
+  
+  // Get investor performance
+  rpc GetInvestorPerformance(InvestorPerformanceRequest) returns (InvestorPerformanceResponse);
+  
+  // Predict price movement
+  rpc PredictPrice(PricePredictionRequest) returns (PricePredictionResponse);
+  
+  // Record trade for analytics
+  rpc RecordTrade(TradeRecord) returns (TradeRecordResponse);
+  
+  // Get trading volume over time
+  rpc GetTradingVolume(TradingVolumeRequest) returns (TradingVolumeResponse);
+}
+
+message TopTradedRequest {
+  int32 limit = 1;
+  int64 time_period = 2;  // Time period in seconds
+}
+
+message StockTradingStats {
+  string stock_symbol = 1;
+  int32 total_volume = 2;
+  int32 trade_count = 3;
+  double total_value = 4;
+}
+
+message TopTradedResponse {
+  repeated StockTradingStats stocks = 1;
+}
+
+message VolatileStocksRequest {
+  int32 limit = 1;
+  int64 time_period = 2;
+}
+
+message StockVolatilityStats {
+  string stock_symbol = 1;
+  double volatility_score = 2;
+  double price_change_percent = 3;
+  double high_price = 4;
+  double low_price = 5;
+}
+
+message VolatileStocksResponse {
+  repeated StockVolatilityStats stocks = 1;
+}
+
+message MarketStatsRequest {}
+
+message MarketStatsResponse {
+  int32 total_trades_today = 1;
+  double total_volume_today = 2;
+  int32 active_investors = 3;
+  int32 active_stocks = 4;
+  double market_trend = 5;  // Positive or negative overall trend
+  string market_sentiment = 6;  // BULLISH, BEARISH, NEUTRAL
+}
+
+message InvestorPerformanceRequest {
+  string investor_id = 1;
+}
+
+message InvestorPerformanceResponse {
+  string investor_id = 1;
+  double total_profit_loss = 2;
+  double profit_loss_percent = 3;
+  int32 total_trades = 4;
+  int32 winning_trades = 5;
+  int32 losing_trades = 6;
+  double win_rate = 7;
+  double average_trade_size = 8;
+  string risk_level = 9;  // LOW, MEDIUM, HIGH
+}
+
+message PricePredictionRequest {
+  string stock_symbol = 1;
+  int32 time_horizon = 2;  // Prediction horizon in minutes
+}
+
+message PricePredictionResponse {
+  string stock_symbol = 1;
+  double current_price = 2;
+  double predicted_price = 3;
+  double confidence = 4;
+  string trend = 5;  // UP, DOWN, STABLE
+  string model_used = 6;
+}
+
+message TradeRecord {
+  string stock_symbol = 1;
+  string order_type = 2;
+  int32 quantity = 3;
+  double price = 4;
+  string investor_id = 5;
+  int64 timestamp = 6;
+}
+
+message TradeRecordResponse {
+  bool success = 1;
+}
+
+message TradingVolumeRequest {
+  string stock_symbol = 1;
+  int64 start_time = 2;
+  int64 end_time = 3;
+  int32 interval = 4;  // Interval in seconds (e.g., 60 for 1-minute intervals)
+}
+
+message VolumeDataPoint {
+  int64 timestamp = 1;
+  int32 volume = 2;
+  int32 trade_count = 3;
+  double average_price = 4;
+}
+
+message TradingVolumeResponse {
+  string stock_symbol = 1;
+  repeated VolumeDataPoint data_points = 2;
+}
+
