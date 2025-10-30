@@ -29,7 +29,11 @@ The Stock Market API is composed of five interconnected gRPC microservices:
 ### Key Features
 
 - ✅ Real tried-and-tested order matching and execution engine
-- ✅ Real-time price updates from live market data
+- ✅ **Instant price updates** - Prices change immediately when orders are placed!
+- ✅ **Two-stage pricing system** - Order placement (30% impact) + Trade execution (100% impact)
+- ✅ Dynamic price updates based on supply and demand (buy/sell pressure)
+- ✅ Volume-based price impact with configurable volatility
+- ✅ Real-time price streaming for live market data
 - ✅ Secure investor portfolio and transaction management
 - ✅ Advanced market analytics and trend analysis
 - ✅ Webhook notifications for external integrations
@@ -206,13 +210,27 @@ Acts as the central exchange. Receives orders from investors, matches buy and se
 
 **Port:** 50052 (gRPC)
 
-Receives and distributes live market prices from external data providers.
+Manages dynamic stock prices that adjust based on trading activity.
 
 **Key Responsibilities:**
 - Store and serve current market prices
+- **Dynamically update prices based on buy/sell orders**
 - Provide real-time price streams
 - Record historical price data
-- Handle price updates from market data feeds
+- Calculate price impact from trading volume
+
+**Dynamic Price Updates:**
+Prices automatically adjust in real-time based on:
+- **Instant Updates:** Price changes immediately when orders are placed (30% impact)
+- **Trade Execution:** Full price impact when orders match and execute (100% impact)
+- **Direction:** Buy orders push prices up, sell orders push prices down
+- **Volume Impact:** Larger trades have greater price impact (logarithmic scaling)
+- **Market Pressure:** Order book sentiment reflected in real-time
+- **Volatility Factor:** Configurable via `PRICE_VOLATILITY_FACTOR` (default: 0.001)
+
+Formula: `priceChange = currentPrice × volatilityFactor × direction × log(1 + volume/100) × impactFactor`
+- `impactFactor = 0.3` for order placement (market sentiment)
+- `impactFactor = 1.0` for trade execution (actual transaction)
 
 **Event Types:**
 - `PRICE_UPDATE` - Stock price changed
@@ -768,6 +786,26 @@ Example:
 INITIAL_STOCKS=AAPL:150.0:Apple Inc.,GOOGL:2800.0:Alphabet Inc.
 ```
 
+### Price Volatility Configuration
+
+Control how much prices change with each trade by adjusting `PRICE_VOLATILITY_FACTOR`:
+
+```env
+PRICE_VOLATILITY_FACTOR=0.001  # Default: 0.1% base impact
+```
+
+**Recommended Values:**
+- `0.0005` - Low volatility (stable market, large-cap stocks)
+- `0.001` - Medium volatility (default, balanced)
+- `0.002` - High volatility (small-cap stocks, crypto-like)
+- `0.005` - Very high volatility (highly speculative)
+
+**Example Price Impact (100 shares at $100/share):**
+- `0.0005`: ~$0.03 change (0.03%)
+- `0.001`: ~$0.07 change (0.07%)
+- `0.002`: ~$0.14 change (0.14%)
+- `0.005`: ~$0.35 change (0.35%)
+
 ### Database Structure
 
 The system automatically creates these tables:
@@ -826,14 +864,43 @@ The `docker-compose.yml` file defines all five services with proper networking a
 ### Available npm Scripts
 
 ```bash
-npm run market      # Start Market Service
-npm run price       # Start Price Service
-npm run investor    # Start Investor Service
-npm run analytics   # Start Analytics Service
-npm run webhook     # Start Webhook Service
-npm run start:all   # Start all services concurrently
-npm run proto       # Generate proto files (info only)
+npm run market             # Start Market Service
+npm run price              # Start Price Service
+npm run investor           # Start Investor Service
+npm run analytics          # Start Analytics Service
+npm run webhook            # Start Webhook Service
+npm run start:all          # Start all services concurrently
+npm run test:price-updates # Test dynamic price updates (requires services running)
 ```
+
+### Testing Dynamic Price Updates
+
+To verify that prices update correctly based on buying and selling:
+
+```bash
+# 1. Start all services
+npm run start:all
+
+# 2. In another terminal, run the test
+npm run test:price-updates
+```
+
+The test will:
+1. Show initial stock price
+2. Place buy orders (price increases immediately!)
+3. Place sell orders (price decreases immediately!)
+4. Demonstrate volume impact (larger trades = bigger price changes)
+5. Display real-time price changes with explanations
+
+**Example output:**
+```
+📊 Initial Price: $150.00
+📈 BUY order placed: $150.07 (+$0.07) 🟢 +0.05%
+📉 SELL order placed: $149.93 (-$0.14) 🔴 -0.09%
+💰 Large volume: $150.28 (+$0.35) 🟢 +0.23%
+```
+
+**Note:** Prices now update **instantly** when orders are placed, showing market sentiment in real-time!
 
 ### Service Startup Order
 
@@ -949,13 +1016,88 @@ ps aux | grep node
 ```
 1. Client → Market Service: PlaceOrder()
 2. Market Service → Investor Service: ValidateOrder()
-3. Market Service: Match orders in order book
-4. Market Service → Price Service: UpdatePrice()
-5. Market Service → Investor Service: UpdatePortfolio()
-6. Market Service → Investor Service: UpdateBalance()
-7. Market Service → Analytics Service: RecordTrade()
-8. Market Service → Webhook Service: Dispatch event
-9. Webhook Service → External URLs: POST webhook notification
+   - Verify investor has sufficient balance (for buy orders)
+   - Verify investor has sufficient shares (for sell orders)
+3. Market Service: Add order to order book
+   - Store order with price-time priority
+4. Market Service → Price Service: UpdatePrice() [INSTANT - 30% impact]
+   - Update price immediately based on order placement
+   - Reflect market sentiment (buy/sell pressure)
+   - Visible in real-time to all clients
+5. Market Service: Match orders in order book
+   - Match buy and sell orders by price-time priority
+   - Determine execution price and quantity
+   - If no match, order stays in book (price already updated)
+6. [IF ORDERS MATCH] Market Service → Price Service: UpdatePrice() [FULL - 100% impact]
+   - Analyze market pressure (buy vs sell aggression)
+   - Calculate price impact based on trade volume
+   - Apply full execution price update
+7. Market Service → Investor Service: UpdatePortfolio()
+   - Add shares to buyer's portfolio
+   - Remove shares from seller's portfolio
+8. Market Service → Investor Service: UpdateBalance()
+   - Deduct cost from buyer's balance
+   - Add proceeds to seller's balance
+9. Market Service → Analytics Service: RecordTrade()
+   - Store trade data for analytics
+10. Market Service → Webhook Service: Dispatch event
+11. Webhook Service → External URLs: POST webhook notification
+    - Notify subscribed endpoints of trade execution
+```
+
+### Price Update Mechanism
+
+Prices update in **two stages** to reflect both market sentiment and actual trades:
+
+#### Stage 1: Order Placement (Immediate - 30% Impact)
+
+When ANY order is placed (buy or sell):
+
+1. **Instant Price Reaction:**
+   - **BUY order placed** → Price increases immediately ⬆️
+   - **SELL order placed** → Price decreases immediately ⬇️
+   - Reflects market sentiment and order book pressure
+
+2. **Reduced Impact:**
+   - Uses 30% of normal volume impact
+   - Shows interest without full execution impact
+   - Updates happen in real-time as orders arrive
+
+#### Stage 2: Trade Execution (Full - 100% Impact)
+
+When orders match and execute:
+
+1. **Determine Market Pressure:**
+   - If buyer placed a market order (price = 0): **Buying pressure** → Price goes UP
+   - If seller placed a market order (price = 0): **Selling pressure** → Price goes DOWN
+   - If both are limit orders: Most recent order determines direction
+
+2. **Calculate Price Impact:**
+   - Base impact: `currentPrice × PRICE_VOLATILITY_FACTOR`
+   - Volume multiplier: `log(1 + tradeVolume / 100)`
+   - Direction: `+1` for buy pressure, `-1` for sell pressure
+   - Random variance: `±0.1%` for market realism
+
+3. **Apply Price Change:**
+   - New price = Current price + (price impact × direction × volume multiplier × random factor)
+   - Update high/low prices for the day
+   - Record in price history with volume
+
+4. **Notify Subscribers:**
+   - Broadcast price update via streaming APIs
+   - Trigger webhooks for PRICE_UPDATE events
+
+#### Example:
+```
+Initial Price: $150.00
+
+1. Investor A places BUY order (100 shares)
+   → Price: $150.02 (+$0.02) [30% impact - sentiment]
+
+2. Investor B's SELL order matches and executes
+   → Price: $150.08 (+$0.06) [100% impact - actual trade]
+
+Total change: $150.08 (+$0.08 from initial)
 ```
 
 ---

@@ -104,6 +104,42 @@ async function placeOrder(call, callback) {
     // Add to matching engine
     const executions = matchingEngine.addOrder(order);
 
+    // Update price based on order placement (market sentiment)
+    // Even if order doesn't execute, it shows buying/selling pressure
+    if (executions.length === 0) {
+      // No execution, but order was placed - update price based on order book pressure
+      // Use smaller impact than actual trades (30% of normal impact)
+      const isBuyOrder = order_type === 0;
+      
+      // Get current price for market orders
+      let orderPrice = price;
+      if (price === 0) {
+        // Market order - get current market price
+        priceClient.GetPrice({ stock_symbol }, (err, priceData) => {
+          if (!err && priceData) {
+            priceClient.UpdatePrice({
+              stock_symbol,
+              trade_price: priceData.current_price,
+              trade_volume: Math.floor(quantity * 0.3), // Reduced impact
+              is_buy: isBuyOrder
+            }, (err) => {
+              if (err) logger.error('Failed to update price from order placement', { error: err.message });
+            });
+          }
+        });
+      } else {
+        // Limit order - use the order price
+        priceClient.UpdatePrice({
+          stock_symbol,
+          trade_price: orderPrice,
+          trade_volume: Math.floor(quantity * 0.3), // Reduced impact
+          is_buy: isBuyOrder
+        }, (err) => {
+          if (err) logger.error('Failed to update price from order placement', { error: err.message });
+        });
+      }
+    }
+
     // Process executions
     for (const execution of executions) {
       await processExecution(execution);
@@ -143,12 +179,39 @@ async function processExecution(execution) {
   const { stock_symbol, quantity, price, buyer_id, seller_id, buy_order_id, sell_order_id } = execution;
 
   try {
-    // Update price service
+    // Get the buyer and seller orders to determine market pressure
+    const buyOrder = matchingEngine.orders[buy_order_id];
+    const sellOrder = matchingEngine.orders[sell_order_id];
+    
+    // Determine if this trade represents buying or selling pressure
+    // Market orders (price = 0) indicate aggressive takers
+    // If buyer placed market order, it's buying pressure (price goes up)
+    // If seller placed market order, it's selling pressure (price goes down)
+    // If both are limit orders, the most recent order determines the direction
+    let isBuyPressure = true;
+    
+    if (buyOrder && sellOrder) {
+      if (buyOrder.price === 0 && sellOrder.price !== 0) {
+        // Buyer crossed the spread with market order - buying pressure
+        isBuyPressure = true;
+      } else if (sellOrder.price === 0 && buyOrder.price !== 0) {
+        // Seller crossed the spread with market order - selling pressure
+        isBuyPressure = false;
+      } else if (buyOrder.created_at > sellOrder.created_at) {
+        // Buyer's order was more recent - buying pressure
+        isBuyPressure = true;
+      } else {
+        // Seller's order was more recent - selling pressure
+        isBuyPressure = false;
+      }
+    }
+    
+    // Update price service with correct direction
     priceClient.UpdatePrice({
       stock_symbol,
       trade_price: price,
       trade_volume: quantity,
-      is_buy: true
+      is_buy: isBuyPressure
     }, (err) => {
       if (err) logger.error('Failed to update price', { error: err.message });
     });

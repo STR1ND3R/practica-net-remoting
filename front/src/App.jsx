@@ -1,35 +1,89 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AppProvider, useApp } from './context/AppContext';
+import Layout from './components/Layout';
+import Dashboard from './components/Dashboard';
+import Trading from './components/Trading';
+import Portfolio from './components/Portfolio';
+import Analytics from './components/Analytics';
+import Login from './components/Login';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
+// Protected Route component
+const ProtectedRoute = ({ children }) => {
+  const { isLoggedIn } = useApp();
+  return isLoggedIn ? children : <Navigate to="/login" replace />;
+};
+
+// Main App Routes
+const AppRoutes = () => {
+  const { isLoggedIn } = useApp();
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <Router>
+      <Routes>
+        {/* Login Route */}
+        <Route
+          path="/login"
+          element={isLoggedIn ? <Navigate to="/" replace /> : <Login />}
+        />
+
+        {/* Protected Routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Dashboard />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/trading"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Trading />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/portfolio"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Portfolio />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <Analytics />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Redirect all other routes to home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
+  );
+};
+
+// Main App Component
+function App() {
+  return (
+    <AppProvider>
+      <AppRoutes />
+    </AppProvider>
+  );
 }
 
-export default App
+export default App;

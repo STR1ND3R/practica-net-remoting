@@ -10,7 +10,8 @@
     "investor": "node investor-service/server.js",
     "analytics": "node analytics-service/server.js",
     "webhook": "node webhook-service/server.js",
-    "start:all": "concurrently \"npm run price\" \"npm run investor\" \"npm run analytics\" \"npm run market\" \"npm run webhook\""
+    "start:all": "concurrently \"npm run price\" \"npm run investor\" \"npm run analytics\" \"npm run market\" \"npm run webhook\"",
+    "test:price-updates": "node examples/test-price-updates.js"
   },
   "keywords": [
     "grpc",
